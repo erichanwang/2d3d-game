@@ -23,8 +23,8 @@ HOVER_GREY = (190, 190, 190)
 UI_PANEL_COLOR = (240, 240, 240)
 TRAMPOLINE_COLOR = (0, 150, 150)
 WALL_3D_COLOR = (100, 100, 255)
-WALL_3D_SHADOW_COLOR = (0, 0, 0, 100) # Semi-transparent black
-SLOPE_COLOR = (255, 165, 0) # Orange
+WALL_3D_SHADOW_COLOR = (0, 0, 0, 100)
+SLOPE_COLOR = (255, 165, 0)
 
 # --- Physics ---
 GRAVITY = 0.5
@@ -162,10 +162,12 @@ class LevelSelect(Menu):
 class LevelEditor(LevelSelect):
     def __init__(self, game):
         super().__init__(game)
-        self.objects = [GameObject(0, SCREEN_HEIGHT - 20, SCREEN_WIDTH, 20, GREY, "ground")]
+        self.objects = [GameObject(0, SCREEN_HEIGHT - 20, SCREEN_WIDTH * 2, 20, GREY, "ground")]
         self.selected_object_type = None
         self.snap_to_grid = True
         self.ui_width = 200
+        self.camera = Camera(SCREEN_WIDTH, SCREEN_HEIGHT)
+        self.camera.camera.x = 0
         
         self.palette_buttons = [
             Button(10, 50, 180, 40, "Platform", RED, (255, 100, 100)),
@@ -196,9 +198,10 @@ class LevelEditor(LevelSelect):
                 if self.save_button.is_clicked(event): self.save_level(); return
 
                 if mouse_pos[0] > self.ui_width:
+                    world_pos = (mouse_pos[0] - self.camera.camera.x, mouse_pos[1])
                     if event.button == 1:
-                        if self.selected_object_type == "delete": self.delete_object(mouse_pos)
-                        else: self.place_object(mouse_pos)
+                        if self.selected_object_type == "delete": self.delete_object(world_pos)
+                        else: self.place_object(world_pos)
                 else: self.selected_object_type = None
 
     def place_object(self, pos):
@@ -219,6 +222,10 @@ class LevelEditor(LevelSelect):
         self.objects = [o for o in self.objects if not o.rect.collidepoint(pos) and o.type != "ground"]
 
     def update(self):
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_LEFT] or keys[pygame.K_a]: self.camera.camera.x += 5
+        if keys[pygame.K_RIGHT] or keys[pygame.K_d]: self.camera.camera.x -= 5
+        
         mouse_pos = pygame.mouse.get_pos()
         for button in self.palette_buttons: button.check_hover(mouse_pos)
         self.save_button.check_hover(mouse_pos)
@@ -229,8 +236,8 @@ class LevelEditor(LevelSelect):
         screen.fill(WHITE)
         self.draw_grid(screen)
         for obj in self.objects:
-            if isinstance(obj, Slope): obj.draw(screen, self.game.static_camera)
-            else: pygame.draw.rect(screen, obj.color, obj.rect)
+            if isinstance(obj, Slope): obj.draw(screen, self.camera)
+            else: pygame.draw.rect(screen, obj.color, self.camera.apply(obj))
         self.draw_ghost(screen)
         ui_panel = pygame.Rect(0, 0, self.ui_width, SCREEN_HEIGHT)
         pygame.draw.rect(screen, UI_PANEL_COLOR, ui_panel)
@@ -243,7 +250,8 @@ class LevelEditor(LevelSelect):
 
     def draw_grid(self, screen):
         if self.snap_to_grid:
-            for x in range(0, SCREEN_WIDTH, GRID_SIZE): pygame.draw.line(screen, LIGHT_GREY, (x, 0), (x, SCREEN_HEIGHT))
+            offset_x = self.camera.camera.x % GRID_SIZE
+            for x in range(0, SCREEN_WIDTH + GRID_SIZE, GRID_SIZE): pygame.draw.line(screen, LIGHT_GREY, (x + offset_x, 0), (x + offset_x, SCREEN_HEIGHT))
             for y in range(0, SCREEN_HEIGHT, GRID_SIZE): pygame.draw.line(screen, LIGHT_GREY, (0, y), (SCREEN_WIDTH, y))
 
     def draw_ghost(self, screen):
@@ -292,11 +300,13 @@ class Playing:
         self.coyote_timer = 0
         self.is_grabbing = False
         self.platforms, self.pushable_objects, self.trampolines, self.walls_3d, self.slopes = [], [], [], [], []
-        self.load_level(level_data)
+        self.level_data = level_data
+        self.load_level(self.level_data)
         self.camera = Camera(SCREEN_WIDTH, SCREEN_HEIGHT)
 
     def load_level(self, level_data):
-        self.platforms.append(pygame.Rect(0, SCREEN_HEIGHT - 20, SCREEN_WIDTH, 20))
+        self.platforms = [pygame.Rect(0, SCREEN_HEIGHT - 20, SCREEN_WIDTH, 20)]
+        self.pushable_objects, self.trampolines, self.walls_3d, self.slopes = [], [], [], []
         if level_data:
             for item in level_data:
                 parts = item.strip().split(',')
@@ -311,10 +321,11 @@ class Playing:
         for event in events:
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE: self.game.change_state(MENU)
-                if event.key == pygame.K_SPACE: self.toggle_mode()
-                if event.key in [pygame.K_UP, pygame.K_w] and (self.on_ground or self.coyote_timer > 0) and not self.is_3d_mode:
-                    self.player_vel_y = JUMP_STRENGTH
-                    self.coyote_timer = 0
+                if event.key == pygame.K_f: self.toggle_mode()
+                if event.key == pygame.K_SPACE:
+                    if self.is_3d_mode or self.on_ground or self.coyote_timer > 0:
+                        self.player_vel_y = JUMP_STRENGTH
+                        self.coyote_timer = 0
 
     def toggle_mode(self):
         self.is_3d_mode = not self.is_3d_mode
@@ -322,7 +333,7 @@ class Playing:
         self.player.size = (40, 40) if self.is_3d_mode else (40, 50)
         self.player.center = center
         for obj in self.pushable_objects: obj.is_static = not self.is_3d_mode
-        if self.is_3d_mode: self.player_vel_y = 0
+        if not self.is_3d_mode: self.player_vel_y = 0
         self.is_grabbing = False
 
     def update(self):
@@ -349,6 +360,15 @@ class Playing:
         else: self.coyote_timer -= 1
         
         self.camera.update(self.player)
+
+        if self.player.top > SCREEN_HEIGHT:
+            self.reset_level()
+
+    def reset_level(self):
+        self.player.x = 100
+        self.player.y = SCREEN_HEIGHT - 100
+        self.player_vel_y = 0
+        self.load_level(self.level_data)
 
     def handle_collisions(self, axis, movement):
         self.on_ground = False
@@ -430,17 +450,9 @@ class PlayingInfinite(Playing):
         self.generate_chunk(SCREEN_WIDTH)
 
     def generate_chunk(self, x_pos):
-        # Ground/Ceiling sections
-        if random.random() < 0.2:
-            self.platforms.append(pygame.Rect(x_pos, SCREEN_HEIGHT - 20, SCREEN_WIDTH, 20))
-        if random.random() < 0.1:
-            self.platforms.append(pygame.Rect(x_pos, 0, SCREEN_WIDTH, 20))
-        
-        # Standard platforms
-        for _ in range(random.randint(2, 4)):
-            self.platforms.append(pygame.Rect(x_pos + random.randint(-100, 100), random.randint(200, SCREEN_HEIGHT - 100), random.randint(80, 200), 20))
-        
-        # Other objects
+        if random.random() < 0.2: self.platforms.append(pygame.Rect(x_pos, SCREEN_HEIGHT - 20, SCREEN_WIDTH, 20))
+        if random.random() < 0.1: self.platforms.append(pygame.Rect(x_pos, 0, SCREEN_WIDTH, 20))
+        for _ in range(random.randint(2, 4)): self.platforms.append(pygame.Rect(x_pos + random.randint(-100, 100), random.randint(200, SCREEN_HEIGHT - 100), random.randint(80, 200), 20))
         if random.random() < 0.15: self.trampolines.append(pygame.Rect(x_pos + random.randint(0, 100), random.randint(300, SCREEN_HEIGHT - 50), 80, 20))
         if random.random() < 0.1: self.pushable_objects.append(PushableObject(x_pos + random.randint(0, 100), SCREEN_HEIGHT - 60, 40, 40, PURPLE))
         if random.random() < 0.3: self.walls_3d.append(pygame.Rect(x_pos + random.randint(0, 200), SCREEN_HEIGHT - 120, 20, 100))
