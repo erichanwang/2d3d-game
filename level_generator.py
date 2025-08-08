@@ -37,7 +37,7 @@ def generate_level(level_num):
     # This is a simplified example. A real implementation would need a more complex algorithm.
     # For instance, create a path that is only solvable by switching dimensions.
     # Here, we'll just add a few "3D" platforms.
-    for _ in range(100):
+    for _ in range(5):
         r, c = random.randint(1, height - 2), random.randint(1, width - 2)
         if level[r][c] == ' ':
             level[r][c] = 'P' # 'P' for platform, only visible in 3D
@@ -55,7 +55,22 @@ def generate_level(level_num):
     print(f"Generated {level_name}")
 
 if __name__ == "__main__":
-    start = 6
-    num_levels_to_generate = 100
-    for i in range(start, start+num_levels_to_generate):
-        generate_level(i)
+    config_file = 'randomgen.txt'
+    
+    # Read configuration
+    with open(config_file, 'r') as f:
+        start_level = int(f.readline().strip())
+        num_to_generate = int(f.readline().strip())
+        
+    # Generate levels
+    for i in range(num_to_generate):
+        level_num = start_level + i
+        generate_level(level_num)
+        
+    # Update the starting level number for the next run
+    new_start_level = start_level + num_to_generate
+    with open(config_file, 'w') as f:
+        f.write(f"{new_start_level}\n")
+        f.write(f"{num_to_generate}\n")
+        
+    print(f"\nGeneration complete. Next run will start from level {new_start_level}.")
