@@ -26,6 +26,7 @@ WALL_3D_COLOR = (100, 100, 255)
 WALL_3D_SHADOW_COLOR = (0, 0, 0, 100)
 SLOPE_COLOR = (255, 165, 0)
 GOAL_COLOR = (255, 255, 0, 150)
+SPIKE_COLOR = (100, 100, 100)
 
 # --- Physics ---
 GRAVITY = 0.5
@@ -54,17 +55,18 @@ class Camera:
 
 # --- UI Classes ---
 class Button:
-    def __init__(self, x, y, width, height, text, color, hover_color, radius=10):
+    def __init__(self, x, y, width, height, text, color, hover_color, radius=10, text_color=BLACK):
         self.rect = pygame.Rect(x, y, width, height)
         self.text = text
         self.color = color
         self.hover_color = hover_color
         self.radius = radius
         self.is_hovered = False
+        self.text_color = text_color
     def draw(self, screen, font):
         current_color = self.hover_color if self.is_hovered else self.color
         pygame.draw.rect(screen, current_color, self.rect, border_radius=self.radius)
-        text_surface = font.render(self.text, True, BLACK)
+        text_surface = font.render(self.text, True, self.text_color)
         text_rect = text_surface.get_rect(center=self.rect.center)
         screen.blit(text_surface, text_rect)
     def check_hover(self, mouse_pos):
@@ -185,24 +187,27 @@ class LevelEditor(LevelSelect):
             self.load_level_for_edit(level_data)
         self.selected_object_type = None
         self.snap_to_grid = True
-        self.ui_width = 200
+        self.ui_width = 220
         self.camera = Camera(SCREEN_WIDTH, SCREEN_HEIGHT)
         self.camera.camera.x = 0
-        
+        self.font = pygame.font.Font(None, 40)
+        self.button_font = pygame.font.Font(None, 28)
+
         self.palette_buttons = [
-            Button(10, 50, 180, 40, "Start Point", GREEN, (100, 255, 100)),
-            Button(10, 100, 180, 40, "End Goal", (255,255,0), (255,255,100)),
-            Button(10, 150, 180, 40, "Platform", RED, (255, 100, 100)),
-            Button(10, 200, 180, 40, "Pushable Box", PURPLE, (200, 100, 200)),
-            Button(10, 250, 180, 40, "Trampoline", TRAMPOLINE_COLOR, (100, 200, 200)),
-            Button(10, 300, 180, 40, "3D Wall", WALL_3D_COLOR, (150, 150, 255)),
-            Button(10, 350, 180, 40, "Slope Up", SLOPE_COLOR, (255, 200, 100)),
-            Button(10, 400, 180, 40, "Slope Down", SLOPE_COLOR, (255, 200, 100)),
-            Button(10, 450, 180, 40, "DELETE", (255, 50, 50), (255, 120, 120))
+            Button(10, 50, 200, 35, "Start Point", (200, 255, 200), (150, 255, 150)),
+            Button(10, 90, 200, 35, "End Goal", (255, 255, 200), (255, 255, 150)),
+            Button(10, 140, 95, 35, "Platform", RED, (255,150,150)),
+            Button(115, 140, 95, 35, "Spike", SPIKE_COLOR, (150,150,150), text_color=WHITE),
+            Button(10, 180, 95, 35, "Pushable", PURPLE, (200,150,200), text_color=WHITE),
+            Button(115, 180, 95, 35, "Trampoline", TRAMPOLINE_COLOR, (100,200,200)),
+            Button(10, 220, 95, 35, "3D Wall", WALL_3D_COLOR, (150,150,255), text_color=WHITE),
+            Button(115, 220, 95, 35, "Slope Up", SLOPE_COLOR, (255,200,100)),
+            Button(10, 260, 95, 35, "Slope Down", SLOPE_COLOR, (255,200,100)),
+            Button(115, 260, 95, 35, "DELETE", (255,100,100), (255,50,50), text_color=WHITE)
         ]
-        self.snap_button = Button(10, 500, 180, 40, "Snap: ON", GREEN, (100, 255, 100))
-        self.save_button = Button(10, SCREEN_HEIGHT - 60, 180, 40, "Save Level", GREEN, (100, 255, 100))
-        self.back_button = Button(10, SCREEN_HEIGHT - 110, 180, 40, "Back to Menu", GREY, HOVER_GREY)
+        self.snap_button = Button(10, SCREEN_HEIGHT - 150, 200, 40, "Snap: ON", (200, 255, 200), (150, 255, 150))
+        self.save_button = Button(10, SCREEN_HEIGHT - 105, 200, 40, "Save Level", (200, 255, 200), (150, 255, 150))
+        self.back_button = Button(10, SCREEN_HEIGHT - 60, 200, 40, "Back to Menu", (220, 220, 220), HOVER_GREY)
 
     def load_level_for_edit(self, level_data):
         for item in level_data:
