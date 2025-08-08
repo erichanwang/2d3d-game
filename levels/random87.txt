@@ -1,10 +1,10 @@
-   ##  # #   #   # #
- P#E  EP# ###EP P#P 
- #  #P PSP ##  PP## 
-  # ##PPP##PP#EP#P##
- P#P#  # ##PP #   P 
- P##P#  P#   #P P ##
- G#P # PE#P PP#PP# #
-# ##P##  ##PP# #  P#
-  #P P## #  #P P# P 
-  ## # # #         #
+ #     #    #   #   
+     #P  P#EPPP # ##
+# P P#E# SEP##  P#P#
+##PG #  P  ##P ## ##
+ ###PP#    P#PP  P  
+ P# #P P #P PP# P#P 
+# ###P##P# # P#P  P 
+ # PPPP P# P#P#PP # 
+  # #EPP#P # # P #P#
+   ###   ##     ##  
