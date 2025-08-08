@@ -189,7 +189,7 @@ class LevelSelect(Menu):
                 if btn_group['edit'].is_clicked(event, -self.scroll_y):
                     level_path = os.path.join(self.levels_dir, btn_group['filename'])
                     with open(level_path, 'r') as f: level_data = f.readlines()
-                    self.game.start_editing(level_data=level_data)
+                    self.game.start_editing(level_data=level_data, filename=btn_group['filename'])
     def update(self):
         mouse_pos = pygame.mouse.get_pos()
         self.back_button.check_hover(mouse_pos)
@@ -208,8 +208,9 @@ class LevelSelect(Menu):
 
 # --- Level Editor ---
 class LevelEditor(LevelSelect):
-    def __init__(self, game, level_data=None):
+    def __init__(self, game, level_data=None, filename=None):
         super().__init__(game)
+        self.current_level_filename = os.path.splitext(filename)[0] if filename else None
         self.objects = []
         if level_data is None:
             self.objects.append(GameObject(0, SCREEN_HEIGHT - 20, SCREEN_WIDTH * 2, 20, GREY, "ground"))
@@ -223,6 +224,7 @@ class LevelEditor(LevelSelect):
         self.font = pygame.font.Font(None, 40)
         self.button_font = pygame.font.Font(None, 28)
         self.title_font = pygame.font.Font(None, 36)
+        self.palette_scroll_y = 0
         self.palette_buttons = [
             Button(10, 60, 200, 35, "Start Point", (200, 255, 200), (150, 255, 150)),
             Button(10, 105, 200, 35, "End Goal", (255, 255, 200), (255, 255, 150)),
@@ -239,6 +241,11 @@ class LevelEditor(LevelSelect):
         ]
         self.snap_button = Button(10, SCREEN_HEIGHT - 150, 200, 40, "Snap: ON", (200, 255, 200), (150, 255, 150))
         self.save_button = Button(10, SCREEN_HEIGHT - 105, 200, 40, "Save Level", (200, 255, 200), (150, 255, 150))
+        self.save_as_button = None
+        if self.current_level_filename:
+            self.save_button.text = "Save"
+            self.save_button.rect.width = 95
+            self.save_as_button = Button(115, SCREEN_HEIGHT - 105, 95, 40, "Save As", (200, 255, 200), (150, 255, 150))
         self.back_button = Button(10, SCREEN_HEIGHT - 60, 200, 40, "Back to Menu", (220, 220, 220), HOVER_GREY)
         self.text_input_box = None
     def load_level_for_edit(self, level_data):
@@ -258,11 +265,25 @@ class LevelEditor(LevelSelect):
     def handle_events(self, events):
         mouse_pos = pygame.mouse.get_pos()
         for event in events:
+            if event.type == pygame.MOUSEWHEEL and mouse_pos[0] < self.ui_width:
+                self.palette_scroll_y -= event.y * 20
+                content_height = self.palette_buttons[-1].rect.bottom - self.palette_buttons[0].rect.top
+                view_height = (self.snap_button.rect.top - 10) - self.palette_buttons[0].rect.top
+                max_scroll = content_height - view_height
+                if max_scroll < 0: max_scroll = 0
+                self.palette_scroll_y = max(0, min(self.palette_scroll_y, max_scroll))
+                return
+
             if self.text_input_box:
                 filename = self.text_input_box.handle_event(event)
                 if filename is not None:
                     self.save_level(filename)
                     self.text_input_box = None
+                    self.current_level_filename = filename
+                    self.save_button.text = "Save"
+                    self.save_button.rect.width = 95
+                    if self.save_as_button is None:
+                        self.save_as_button = Button(115, SCREEN_HEIGHT - 105, 95, 40, "Save As", (200, 255, 200), (150, 255, 150))
                 return
             if self.back_button.is_clicked(event): self.game.change_state(MENU)
             if self.snap_button.is_clicked(event):
@@ -270,10 +291,16 @@ class LevelEditor(LevelSelect):
                 self.snap_button.text = f"Snap: {'ON' if self.snap_to_grid else 'OFF'}"
             if event.type == pygame.MOUSEBUTTONDOWN:
                 for i, btn in enumerate(self.palette_buttons):
-                    if btn.is_clicked(event):
+                    if btn.is_clicked(event, -self.palette_scroll_y):
                         self.selected_object_type = ["start", "goal", "checkpoint", "platform", "v_wall", "slope_up", "slope_down", "pushable", "trampoline", "wall_3d", "spike", "delete"][i]
                         return
                 if self.save_button.is_clicked(event):
+                    if self.current_level_filename:
+                        self.save_level(self.current_level_filename)
+                    else:
+                        self.prompt_for_filename()
+                    return
+                if self.save_as_button and self.save_as_button.is_clicked(event):
                     self.prompt_for_filename()
                     return
                 if mouse_pos[0] > self.ui_width:
@@ -307,8 +334,10 @@ class LevelEditor(LevelSelect):
         if keys[pygame.K_RIGHT] or keys[pygame.K_d]: self.camera.camera.x -= 10
         self.camera.camera.x = min(0, self.camera.camera.x)
         mouse_pos = pygame.mouse.get_pos()
-        for button in self.palette_buttons: button.check_hover(mouse_pos)
+        for button in self.palette_buttons: button.check_hover(mouse_pos, -self.palette_scroll_y)
         self.save_button.check_hover(mouse_pos)
+        if self.save_as_button:
+            self.save_as_button.check_hover(mouse_pos)
         self.back_button.check_hover(mouse_pos)
         self.snap_button.check_hover(mouse_pos)
     def draw(self, screen):
@@ -327,9 +356,11 @@ class LevelEditor(LevelSelect):
         title_surf = self.title_font.render("Level Editor", True, BLACK)
         title_rect = title_surf.get_rect(center=(self.ui_width // 2, 30))
         screen.blit(title_surf, title_rect)
-        for button in self.palette_buttons: button.draw(screen, self.button_font)
+        for button in self.palette_buttons: button.draw(screen, self.button_font, -self.palette_scroll_y)
         self.snap_button.draw(screen, self.button_font)
         self.save_button.draw(screen, self.button_font)
+        if self.save_as_button:
+            self.save_as_button.draw(screen, self.button_font)
         self.back_button.draw(screen, self.button_font)
         if self.text_input_box:
             self.text_input_box.draw(screen)
@@ -704,10 +735,10 @@ class Game:
         }
         self.current_state_name = MENU
         self.current_state = self.states[self.current_state_name]
-    def change_state(self, new_state_name, level_data=None):
+    def change_state(self, new_state_name, level_data=None, filename=None):
         if new_state_name in self.states:
             if new_state_name == LEVEL_EDITOR:
-                self.states[LEVEL_EDITOR] = LevelEditor(self, level_data=level_data)
+                self.states[LEVEL_EDITOR] = LevelEditor(self, level_data=level_data, filename=filename)
             elif new_state_name in [PLAYING_INFINITE, LEVEL_SELECT]:
                 self.states[new_state_name] = type(self.states[new_state_name])(self)
             self.current_state = self.states[new_state_name]
@@ -715,8 +746,8 @@ class Game:
     def start_playing(self, level_data=None):
         self.states[PLAYING] = Playing(self, level_data=level_data)
         self.change_state(PLAYING)
-    def start_editing(self, level_data=None):
-        self.change_state(LEVEL_EDITOR, level_data=level_data)
+    def start_editing(self, level_data=None, filename=None):
+        self.change_state(LEVEL_EDITOR, level_data=level_data, filename=filename)
     def run(self):
         while self.is_running:
             events = pygame.event.get()
