@@ -36,7 +36,6 @@ JUMP_STRENGTH = -11
 TRAMPOLINE_BOUNCE = -20
 COYOTE_TIME_FRAMES = 4
 Z_JUMP_HEIGHT = 10
-Z_JUMP_DURATION = 30 # frames
 
 # --- Game States ---
 MENU, LEVEL_EDITOR, LEVEL_SELECT, PLAYING, PLAYING_INFINITE = "menu", "level_editor", "level_select", "playing", "playing_infinite"
