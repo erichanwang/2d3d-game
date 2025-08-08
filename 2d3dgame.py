@@ -220,6 +220,7 @@ class LevelEditor(LevelSelect):
             elif obj_type == "trampoline": self.objects.append(GameObject(*data, TRAMPOLINE_COLOR, "trampoline"))
             elif obj_type == "wall_3d": self.objects.append(GameObject(*data, WALL_3D_COLOR, "wall_3d"))
             elif obj_type == "slope": self.objects.append(Slope(data[0], data[1], data[2], data[3], SLOPE_COLOR, data[4], data[5]))
+            elif obj_type == "spike": self.objects.append(GameObject(*data, SPIKE_COLOR, "spike"))
 
     def handle_events(self, events):
         mouse_pos = pygame.mouse.get_pos()
@@ -232,7 +233,7 @@ class LevelEditor(LevelSelect):
             if event.type == pygame.MOUSEBUTTONDOWN:
                 for i, btn in enumerate(self.palette_buttons):
                     if btn.is_clicked(event):
-                        self.selected_object_type = ["start", "goal", "platform", "pushable", "trampoline", "wall_3d", "slope_up", "slope_down", "delete"][i]
+                        self.selected_object_type = ["start", "goal", "platform", "spike", "pushable", "trampoline", "wall_3d", "slope_up", "slope_down", "delete"][i]
                         return
                 if self.save_button.is_clicked(event): self.save_level(); return
 
@@ -258,6 +259,7 @@ class LevelEditor(LevelSelect):
         elif self.selected_object_type == "wall_3d": self.objects.append(GameObject(x, y, 20, 100, WALL_3D_COLOR, "wall_3d"))
         elif self.selected_object_type == "slope_up": self.objects.append(Slope(x, y, 100, 100, SLOPE_COLOR, 100, 0))
         elif self.selected_object_type == "slope_down": self.objects.append(Slope(x, y, 100, 100, SLOPE_COLOR, 0, 100))
+        elif self.selected_object_type == "spike": self.objects.append(GameObject(x, y, 20, 20, SPIKE_COLOR, "spike"))
 
     def delete_object(self, pos):
         self.objects = [o for o in self.objects if not o.rect.collidepoint(pos)]
@@ -278,7 +280,11 @@ class LevelEditor(LevelSelect):
         screen.fill(WHITE)
         self.draw_grid(screen)
         for obj in self.objects:
-            if isinstance(obj, Slope): obj.draw(screen, self.camera)
+            if obj.type == "spike":
+                pts = [(obj.rect.left, obj.rect.bottom), (obj.rect.centerx, obj.rect.top), (obj.rect.right, obj.rect.bottom)]
+                cam_pts = [(p[0] + self.camera.camera.x, p[1] + self.camera.camera.y) for p in pts]
+                pygame.draw.polygon(screen, obj.color, cam_pts)
+            elif isinstance(obj, Slope): obj.draw(screen, self.camera)
             else: pygame.draw.rect(screen, obj.color, self.camera.apply(obj))
         self.draw_ghost(screen)
         ui_panel = pygame.Rect(0, 0, self.ui_width, SCREEN_HEIGHT)
@@ -316,6 +322,9 @@ class LevelEditor(LevelSelect):
         elif self.selected_object_type == "slope_down": pygame.draw.polygon(ghost_surface, SLOPE_COLOR, [(0, 0), (100, 100), (0, 100)]); screen.blit(ghost_surface, (x, y))
         elif self.selected_object_type == "start": pygame.draw.rect(ghost_surface, GREEN, (0, 0, 40, 50)); screen.blit(ghost_surface, (x, y))
         elif self.selected_object_type == "goal": pygame.draw.rect(ghost_surface, GOAL_COLOR, (0, 0, 80, 80)); screen.blit(ghost_surface, (x, y))
+        elif self.selected_object_type == "spike":
+            pygame.draw.polygon(ghost_surface, SPIKE_COLOR, [(0, 20), (10, 0), (20, 20)])
+            screen.blit(ghost_surface, (x, y))
         elif self.selected_object_type == "delete":
             pygame.draw.line(screen, RED, (x - 10, y - 10), (x + 10, y + 10), 3)
             pygame.draw.line(screen, RED, (x - 10, y + 10), (x + 10, y - 10), 3)
@@ -345,11 +354,11 @@ class Playing:
         self.player = pygame.Rect(100, SCREEN_HEIGHT - 100, 40, 50)
         self.player_vel_y = 0
         self.player_z = 0
-        self.z_jump_timer = 0
+        self.player_vel_z = 0
         self.on_ground = False
         self.coyote_timer = 0
         self.is_grabbing = False
-        self.platforms, self.pushable_objects, self.trampolines, self.walls_3d, self.slopes = [], [], [], [], []
+        self.platforms, self.pushable_objects, self.trampolines, self.walls_3d, self.slopes, self.spikes = [], [], [], [], [], []
         self.start_pos = (100, SCREEN_HEIGHT - 100)
         self.goal_rect = None
         self.level_data = level_data
@@ -357,8 +366,8 @@ class Playing:
         self.camera = Camera(SCREEN_WIDTH, SCREEN_HEIGHT)
 
     def load_level(self, level_data):
-        self.platforms = [pygame.Rect(0, SCREEN_HEIGHT - 20, SCREEN_WIDTH, 20)]
-        self.pushable_objects, self.trampolines, self.walls_3d, self.slopes = [], [], [], []
+        self.platforms = [pygame.Rect(0, SCREEN_HEIGHT - 20, SCREEN_WIDTH * 2, 20)]
+        self.pushable_objects, self.trampolines, self.walls_3d, self.slopes, self.spikes = [], [], [], [], []
         if level_data:
             for item in level_data:
                 parts = item.strip().split(',')
@@ -370,14 +379,15 @@ class Playing:
                 elif obj_type == "trampoline": self.trampolines.append(pygame.Rect(*data))
                 elif obj_type == "wall_3d": self.walls_3d.append(pygame.Rect(*data))
                 elif obj_type == "slope": self.slopes.append(Slope(data[0], data[1], data[2], data[3], SLOPE_COLOR, data[4], data[5]))
+                elif obj_type == "spike": self.spikes.append(pygame.Rect(*data))
 
     def handle_events(self, events):
         for event in events:
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE: self.game.change_state(MENU)
+                if event.key == pygame.K_ESCAPE or event.key == pygame.K_q: self.game.change_state(MENU)
                 if event.key == pygame.K_f: self.toggle_mode()
-                if event.key == pygame.K_SPACE and self.is_3d_mode and self.z_jump_timer == 0:
-                    self.z_jump_timer = Z_JUMP_DURATION
+                if event.key == pygame.K_SPACE and self.is_3d_mode and self.player_z == 0:
+                    self.player_vel_z = JUMP_STRENGTH
                 if event.key in [pygame.K_UP, pygame.K_w] and not self.is_3d_mode and (self.on_ground or self.coyote_timer > 0):
                     self.player_vel_y = JUMP_STRENGTH
                     self.coyote_timer = 0
@@ -399,16 +409,14 @@ class Playing:
         dy = 0
         if self.is_3d_mode:
             dy = ((keys[pygame.K_DOWN] or keys[pygame.K_s]) - (keys[pygame.K_UP] or keys[pygame.K_w])) * 5
+            self.player_vel_z += GRAVITY
+            self.player_z += self.player_vel_z
+            if self.player_z > 0:
+                self.player_z = 0
+                self.player_vel_z = 0
         else:
             self.player_vel_y += GRAVITY
             dy = self.player_vel_y
-
-        if self.z_jump_timer > 0:
-            self.z_jump_timer -= 1
-            progress = self.z_jump_timer / Z_JUMP_DURATION
-            self.player_z = math.sin((1 - progress) * math.pi) * Z_JUMP_HEIGHT
-        else:
-            self.player_z = 0
 
         self.player.x += dx
         self.handle_collisions('horizontal', dx)
@@ -440,6 +448,11 @@ class Playing:
                         if self.player.bottom >= slope_y:
                             self.player.bottom = slope_y; self.on_ground = True; self.player_vel_y = 0
         
+        for spike in self.spikes:
+            if self.player.colliderect(spike):
+                self.reset_level()
+                return
+
         static_colliders = self.platforms + self.walls_3d + [obj.rect for obj in self.pushable_objects if obj.is_static]
         for plat in static_colliders:
             if self.player.colliderect(plat):
@@ -487,6 +500,10 @@ class Playing:
             goal_surf = pygame.Surface(self.goal_rect.size, pygame.SRCALPHA)
             goal_surf.fill(GOAL_COLOR)
             screen.blit(goal_surf, self.camera.apply_rect(self.goal_rect))
+        for spike in self.spikes:
+            pts = [(spike.left, spike.bottom), (spike.centerx, spike.top), (spike.right, spike.bottom)]
+            cam_pts = [self.camera.apply_rect(pygame.Rect(p, (1,1))).topleft for p in pts]
+            pygame.draw.polygon(screen, SPIKE_COLOR, cam_pts)
         for tramp in self.trampolines: pygame.draw.rect(screen, TRAMPOLINE_COLOR, self.camera.apply_rect(tramp))
         for wall in self.walls_3d:
             if self.is_3d_mode:
@@ -499,11 +516,17 @@ class Playing:
         
         player_color = GREEN if self.is_3d_mode else BLUE
         player_draw_rect = self.camera.apply(self.player)
-        if self.is_3d_mode and self.player_z > 0:
-            scale = 1 - (self.player_z / Z_JUMP_HEIGHT) * 0.3
+        if self.is_3d_mode:
+            # Apply Z-based scaling
+            scale = 1 - (abs(self.player_z) / (Z_JUMP_HEIGHT * 5))
             player_draw_rect.width = int(self.player.width * scale)
             player_draw_rect.height = int(self.player.height * scale)
-            player_draw_rect.center = self.camera.apply(self.player).center
+            
+            # Apply Z-based offset and keep center
+            original_center = self.camera.apply(self.player).center
+            player_draw_rect.centerx = original_center[0]
+            player_draw_rect.centery = original_center[1] + int(self.player_z)
+
         pygame.draw.rect(screen, player_color, player_draw_rect)
 
         font = pygame.font.Font(None, 36)
@@ -514,19 +537,48 @@ class PlayingInfinite(Playing):
     def __init__(self, game):
         super().__init__(game, level_data=[])
         self.last_generated_x = 0
-        self.generate_chunk(SCREEN_WIDTH)
+        self.generate_chunk(0) 
 
-    def generate_chunk(self, x_pos):
-        if random.random() < 0.2: self.platforms.append(pygame.Rect(x_pos, SCREEN_HEIGHT - 20, SCREEN_WIDTH, 20))
-        if random.random() < 0.1: self.platforms.append(pygame.Rect(x_pos, 0, SCREEN_WIDTH, 20))
-        for _ in range(random.randint(2, 4)): self.platforms.append(pygame.Rect(x_pos + random.randint(-100, 100), random.randint(200, SCREEN_HEIGHT - 100), random.randint(80, 200), 20))
-        if random.random() < 0.15: self.trampolines.append(pygame.Rect(x_pos + random.randint(0, 100), random.randint(300, SCREEN_HEIGHT - 50), 80, 20))
-        if random.random() < 0.1: self.pushable_objects.append(PushableObject(x_pos + random.randint(0, 100), SCREEN_HEIGHT - 60, 40, 40, PURPLE))
-        if random.random() < 0.3: self.walls_3d.append(pygame.Rect(x_pos + random.randint(0, 200), SCREEN_HEIGHT - 120, 20, 100))
-        if random.random() < 0.2:
-            sx, sy = x_pos + random.randint(0, 100), random.randint(300, SCREEN_HEIGHT - 120)
-            if random.random() < 0.5: self.slopes.append(Slope(sx, sy, 100, 100, SLOPE_COLOR, 100, 0))
-            else: self.slopes.append(Slope(sx, sy, 100, 100, SLOPE_COLOR, 0, 100))
+    def generate_chunk(self, start_x):
+        chunk_width = SCREEN_WIDTH 
+        end_x = start_x + chunk_width
+        
+        patterns = ['flat_gap', 'platforms', 'spike_pit', 'slope_jump', 'wall_climb']
+        chosen_pattern = random.choice(patterns)
+
+        if chosen_pattern == 'flat_gap':
+            gap_start = start_x + random.randint(100, 300)
+            gap_end = gap_start + random.randint(100, 250)
+            self.platforms.append(pygame.Rect(start_x - 20, SCREEN_HEIGHT - 40, gap_start - start_x + 20, 40))
+            self.platforms.append(pygame.Rect(gap_end, SCREEN_HEIGHT - 40, end_x - gap_end + 20, 40))
+
+        elif chosen_pattern == 'platforms':
+            for i in range(random.randint(3, 6)):
+                px = start_x + random.randint(0, chunk_width - 100)
+                py = random.randint(SCREEN_HEIGHT - 250, SCREEN_HEIGHT - 80)
+                self.platforms.append(pygame.Rect(px, py, random.randint(80, 150), 20))
+
+        elif chosen_pattern == 'spike_pit':
+            pit_start = start_x + random.randint(100, 200)
+            pit_width = random.randint(80, 200)
+            self.platforms.append(pygame.Rect(start_x - 20, SCREEN_HEIGHT - 40, pit_start - start_x + 20, 40))
+            for i in range(pit_width // 20):
+                self.spikes.append(pygame.Rect(pit_start + i * 20, SCREEN_HEIGHT - 40, 20, 20))
+            self.platforms.append(pygame.Rect(pit_start + pit_width, SCREEN_HEIGHT - 40, end_x - (pit_start + pit_width) + 20, 40))
+
+        elif chosen_pattern == 'slope_jump':
+            sx = start_x + random.randint(100, 200)
+            self.slopes.append(Slope(sx, SCREEN_HEIGHT - 120, 100, 100, SLOPE_COLOR, 100, 0))
+            if random.random() < 0.5:
+                self.platforms.append(pygame.Rect(sx + 200, SCREEN_HEIGHT - 200, 120, 20))
+
+        elif chosen_pattern == 'wall_climb':
+            wx = start_x + 150
+            self.walls_3d.append(pygame.Rect(wx, SCREEN_HEIGHT - 120, 20, 120))
+            self.walls_3d.append(pygame.Rect(wx + 200, SCREEN_HEIGHT - 220, 20, 120))
+            self.platforms.append(pygame.Rect(wx + 20, SCREEN_HEIGHT - 220, 180, 20))
+
+        self.last_generated_x = end_x
 
     def update(self):
         super().update()
@@ -536,11 +588,12 @@ class PlayingInfinite(Playing):
             self.generate_chunk(self.last_generated_x)
         
         despawn_line = self.player.centerx - SCREEN_WIDTH * 1.5
-        self.platforms = [p for p in self.platforms if p.right > despawn_line or p.height == 20]
+        self.platforms = [p for p in self.platforms if p.right > despawn_line or p.height == 40] # Keep ground platforms
         self.pushable_objects = [o for o in self.pushable_objects if o.rect.right > despawn_line]
         self.trampolines = [t for t in self.trampolines if t.right > despawn_line]
         self.walls_3d = [w for w in self.walls_3d if w.right > despawn_line]
         self.slopes = [s for s in self.slopes if s.rect.right > despawn_line]
+        self.spikes = [s for s in self.spikes if s.right > despawn_line]
 
 # --- Main Game Class ---
 class Game:
