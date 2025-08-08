@@ -27,6 +27,8 @@ WALL_3D_SHADOW_COLOR = (0, 0, 0, 100)
 SLOPE_COLOR = (255, 165, 0)
 GOAL_COLOR = (255, 255, 0, 150)
 SPIKE_COLOR = (100, 100, 100)
+CHECKPOINT_COLOR = (100, 255, 100, 150)
+CHECKPOINT_ACTIVE_COLOR = (200, 255, 200, 200)
 
 # --- Physics ---
 GRAVITY = 0.5
@@ -201,9 +203,11 @@ class LevelEditor(LevelSelect):
             Button(10, 180, 95, 35, "Pushable", PURPLE, (200,150,200), text_color=WHITE),
             Button(115, 180, 95, 35, "Trampoline", TRAMPOLINE_COLOR, (100,200,200)),
             Button(10, 220, 95, 35, "3D Wall", WALL_3D_COLOR, (150,150,255), text_color=WHITE),
-            Button(115, 220, 95, 35, "Slope Up", SLOPE_COLOR, (255,200,100)),
-            Button(10, 260, 95, 35, "Slope Down", SLOPE_COLOR, (255,200,100)),
-            Button(115, 260, 95, 35, "DELETE", (255,100,100), (255,50,50), text_color=WHITE)
+            Button(115, 220, 95, 35, "V-Wall", WALL_3D_COLOR, (150,150,255), text_color=WHITE),
+            Button(10, 260, 95, 35, "Slope Up", SLOPE_COLOR, (255,200,100)),
+            Button(115, 260, 95, 35, "Slope Down", SLOPE_COLOR, (255,200,100)),
+            Button(10, 300, 200, 35, "Checkpoint", (200,255,200), (150,255,150)),
+            Button(10, 340, 200, 35, "DELETE", (255,100,100), (255,50,50), text_color=WHITE)
         ]
         self.snap_button = Button(10, SCREEN_HEIGHT - 150, 200, 40, "Snap: ON", (200, 255, 200), (150, 255, 150))
         self.save_button = Button(10, SCREEN_HEIGHT - 105, 200, 40, "Save Level", (200, 255, 200), (150, 255, 150))
@@ -219,8 +223,10 @@ class LevelEditor(LevelSelect):
             elif obj_type == "pushable": self.objects.append(PushableObject(*data, PURPLE))
             elif obj_type == "trampoline": self.objects.append(GameObject(*data, TRAMPOLINE_COLOR, "trampoline"))
             elif obj_type == "wall_3d": self.objects.append(GameObject(*data, WALL_3D_COLOR, "wall_3d"))
+            elif obj_type == "v_wall": self.objects.append(GameObject(*data, WALL_3D_COLOR, "v_wall"))
             elif obj_type == "slope": self.objects.append(Slope(data[0], data[1], data[2], data[3], SLOPE_COLOR, data[4], data[5]))
             elif obj_type == "spike": self.objects.append(GameObject(*data, SPIKE_COLOR, "spike"))
+            elif obj_type == "checkpoint": self.objects.append(GameObject(*data, CHECKPOINT_COLOR, "checkpoint"))
 
     def handle_events(self, events):
         mouse_pos = pygame.mouse.get_pos()
@@ -233,7 +239,7 @@ class LevelEditor(LevelSelect):
             if event.type == pygame.MOUSEBUTTONDOWN:
                 for i, btn in enumerate(self.palette_buttons):
                     if btn.is_clicked(event):
-                        self.selected_object_type = ["start", "goal", "platform", "spike", "pushable", "trampoline", "wall_3d", "slope_up", "slope_down", "delete"][i]
+                        self.selected_object_type = ["start", "goal", "platform", "spike", "pushable", "trampoline", "wall_3d", "v_wall", "slope_up", "slope_down", "checkpoint", "delete"][i]
                         return
                 if self.save_button.is_clicked(event): self.save_level(); return
 
@@ -257,9 +263,11 @@ class LevelEditor(LevelSelect):
         elif self.selected_object_type == "pushable": self.objects.append(PushableObject(x, y, 40, 40, PURPLE))
         elif self.selected_object_type == "trampoline": self.objects.append(GameObject(x, y, 80, 20, TRAMPOLINE_COLOR, "trampoline"))
         elif self.selected_object_type == "wall_3d": self.objects.append(GameObject(x, y, 20, 100, WALL_3D_COLOR, "wall_3d"))
+        elif self.selected_object_type == "v_wall": self.objects.append(GameObject(x, y, 100, 20, WALL_3D_COLOR, "v_wall"))
         elif self.selected_object_type == "slope_up": self.objects.append(Slope(x, y, 100, 100, SLOPE_COLOR, 100, 0))
         elif self.selected_object_type == "slope_down": self.objects.append(Slope(x, y, 100, 100, SLOPE_COLOR, 0, 100))
         elif self.selected_object_type == "spike": self.objects.append(GameObject(x, y, 20, 20, SPIKE_COLOR, "spike"))
+        elif self.selected_object_type == "checkpoint": self.objects.append(GameObject(x, y, 20, 60, CHECKPOINT_COLOR, "checkpoint"))
 
     def delete_object(self, pos):
         self.objects = [o for o in self.objects if not o.rect.collidepoint(pos)]
@@ -322,6 +330,8 @@ class LevelEditor(LevelSelect):
         elif self.selected_object_type == "slope_down": pygame.draw.polygon(ghost_surface, SLOPE_COLOR, [(0, 0), (100, 100), (0, 100)]); screen.blit(ghost_surface, (x, y))
         elif self.selected_object_type == "start": pygame.draw.rect(ghost_surface, GREEN, (0, 0, 40, 50)); screen.blit(ghost_surface, (x, y))
         elif self.selected_object_type == "goal": pygame.draw.rect(ghost_surface, GOAL_COLOR, (0, 0, 80, 80)); screen.blit(ghost_surface, (x, y))
+        elif self.selected_object_type == "v_wall": pygame.draw.rect(ghost_surface, WALL_3D_COLOR, (0, 0, 100, 20)); screen.blit(ghost_surface, (x, y))
+        elif self.selected_object_type == "checkpoint": pygame.draw.rect(ghost_surface, CHECKPOINT_COLOR, (0, 0, 20, 60)); screen.blit(ghost_surface, (x, y))
         elif self.selected_object_type == "spike":
             pygame.draw.polygon(ghost_surface, SPIKE_COLOR, [(0, 20), (10, 0), (20, 20)])
             screen.blit(ghost_surface, (x, y))
@@ -358,8 +368,11 @@ class Playing:
         self.on_ground = False
         self.coyote_timer = 0
         self.is_grabbing = False
-        self.platforms, self.pushable_objects, self.trampolines, self.walls_3d, self.slopes, self.spikes = [], [], [], [], [], []
+        self.is_wall_sliding = False
+        self.wall_slide_dir = None
+        self.platforms, self.pushable_objects, self.trampolines, self.walls_3d, self.slopes, self.spikes, self.checkpoints, self.v_walls = [], [], [], [], [], [], [], []
         self.start_pos = (100, SCREEN_HEIGHT - 100)
+        self.last_checkpoint = self.start_pos
         self.goal_rect = None
         self.level_data = level_data
         self.load_level(self.level_data)
@@ -367,27 +380,37 @@ class Playing:
 
     def load_level(self, level_data):
         self.platforms = [pygame.Rect(0, SCREEN_HEIGHT - 20, SCREEN_WIDTH * 2, 20)]
-        self.pushable_objects, self.trampolines, self.walls_3d, self.slopes, self.spikes = [], [], [], [], []
+        self.pushable_objects, self.trampolines, self.walls_3d, self.slopes, self.spikes, self.checkpoints, self.v_walls = [], [], [], [], [], [], []
         if level_data:
             for item in level_data:
                 parts = item.strip().split(',')
                 obj_type, data = parts[0], [int(p) for p in parts[1:]]
-                if obj_type == "start": self.start_pos = (data[0], data[1]); self.player.topleft = self.start_pos
+                if obj_type == "start": 
+                    self.start_pos = (data[0], data[1])
+                    self.player.topleft = self.start_pos
+                    self.last_checkpoint = self.start_pos
                 elif obj_type == "goal": self.goal_rect = pygame.Rect(*data)
                 elif obj_type == "platform": self.platforms.append(pygame.Rect(*data))
                 elif obj_type == "pushable": self.pushable_objects.append(PushableObject(*data, PURPLE))
                 elif obj_type == "trampoline": self.trampolines.append(pygame.Rect(*data))
                 elif obj_type == "wall_3d": self.walls_3d.append(pygame.Rect(*data))
+                elif obj_type == "v_wall": self.v_walls.append(pygame.Rect(*data))
                 elif obj_type == "slope": self.slopes.append(Slope(data[0], data[1], data[2], data[3], SLOPE_COLOR, data[4], data[5]))
                 elif obj_type == "spike": self.spikes.append(pygame.Rect(*data))
+                elif obj_type == "checkpoint": self.checkpoints.append(GameObject(data[0], data[1], data[2], data[3], CHECKPOINT_COLOR, "checkpoint"))
 
     def handle_events(self, events):
         for event in events:
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE or event.key == pygame.K_q: self.game.change_state(MENU)
-                if event.key == pygame.K_f: self.toggle_mode()
-                if event.key == pygame.K_SPACE and self.is_3d_mode and self.player_z == 0:
-                    self.player_vel_z = JUMP_STRENGTH
+                if event.key == pygame.K_q: self.game.change_state(MENU)
+                if event.key == pygame.K_j: self.toggle_mode()
+                if event.key == pygame.K_SPACE:
+                    if self.is_wall_sliding:
+                        self.player_vel_y = JUMP_STRENGTH
+                        self.player.x += 5 if self.wall_slide_dir == 'left' else -5
+                        self.is_wall_sliding = False
+                    elif self.is_3d_mode and self.player_z == 0:
+                        self.player_vel_z = JUMP_STRENGTH
                 if event.key in [pygame.K_UP, pygame.K_w] and not self.is_3d_mode and (self.on_ground or self.coyote_timer > 0):
                     self.player_vel_y = JUMP_STRENGTH
                     self.coyote_timer = 0
@@ -403,10 +426,14 @@ class Playing:
 
     def update(self):
         keys = pygame.key.get_pressed()
-        self.is_grabbing = (keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT]) and self.is_3d_mode
+        self.is_grabbing = keys[pygame.K_k] and self.is_3d_mode
         
         dx = ((keys[pygame.K_RIGHT] or keys[pygame.K_d]) - (keys[pygame.K_LEFT] or keys[pygame.K_a])) * 5
         dy = 0
+
+        if self.is_wall_sliding:
+            self.player_vel_y = min(self.player_vel_y + GRAVITY, 2) # Slower slide
+        
         if self.is_3d_mode:
             dy = ((keys[pygame.K_DOWN] or keys[pygame.K_s]) - (keys[pygame.K_UP] or keys[pygame.K_w])) * 5
             self.player_vel_z += GRAVITY
@@ -415,7 +442,8 @@ class Playing:
                 self.player_z = 0
                 self.player_vel_z = 0
         else:
-            self.player_vel_y += GRAVITY
+            if not self.is_wall_sliding:
+                self.player_vel_y += GRAVITY
             dy = self.player_vel_y
 
         self.player.x += dx
@@ -434,12 +462,17 @@ class Playing:
             self.game.change_state(MENU)
 
     def reset_level(self):
-        self.player.topleft = self.start_pos
+        self.player.topleft = self.last_checkpoint
         self.player_vel_y = 0
+        # Reset pushable objects to their initial state if needed
+        # For simplicity, we reload the whole level, but a more robust system
+        # would reset only dynamic elements.
         self.load_level(self.level_data)
 
     def handle_collisions(self, axis, movement):
         self.on_ground = False
+        self.is_wall_sliding = False
+
         if not self.is_3d_mode and axis == 'vertical':
             for slope in self.slopes:
                 if self.player.colliderect(slope.rect):
@@ -452,8 +485,14 @@ class Playing:
             if self.player.colliderect(spike):
                 self.reset_level()
                 return
+        
+        for cp in self.checkpoints:
+            if self.player.colliderect(cp.rect):
+                if self.last_checkpoint != cp.rect.topleft:
+                    self.last_checkpoint = cp.rect.topleft
+                    cp.color = CHECKPOINT_ACTIVE_COLOR
 
-        static_colliders = self.platforms + self.walls_3d + [obj.rect for obj in self.pushable_objects if obj.is_static]
+        static_colliders = self.platforms + self.walls_3d + self.v_walls + [obj.rect for obj in self.pushable_objects if obj.is_static]
         for plat in static_colliders:
             if self.player.colliderect(plat):
                 if axis == 'horizontal':
@@ -465,6 +504,13 @@ class Playing:
                     if movement < 0: self.player.top = plat.bottom; self.player_vel_y = 0
         
         if not self.is_3d_mode:
+            for wall in self.v_walls:
+                if self.player.colliderect(wall) and not self.on_ground:
+                    if (movement > 0 and self.player.right > wall.left) or \
+                       (movement < 0 and self.player.left < wall.right):
+                        self.is_wall_sliding = True
+                        self.wall_slide_dir = 'left' if movement > 0 else 'right'
+                        break
             for tramp in self.trampolines:
                 if self.player.colliderect(tramp) and self.player_vel_y > 0:
                     self.player.bottom = tramp.top; self.player_vel_y = TRAMPOLINE_BOUNCE
@@ -480,11 +526,25 @@ class Playing:
                     elif axis == 'vertical':
                         if movement > 0: self.player.bottom = wall.top
                         if movement < 0: self.player.top = wall.bottom
+            
+            all_static = self.platforms + self.walls_3d + self.v_walls + [s.rect for s in self.slopes]
             for obj in self.pushable_objects:
                 if self.player.colliderect(obj.rect):
                     if self.is_grabbing:
-                        if axis == 'horizontal': obj.rect.x += movement
-                        if axis == 'vertical': obj.rect.y += movement
+                        new_pos_x, new_pos_y = obj.rect.x + movement, obj.rect.y
+                        if axis == 'vertical':
+                            new_pos_x, new_pos_y = obj.rect.x, obj.rect.y + movement
+                        
+                        temp_rect = obj.rect.copy()
+                        temp_rect.topleft = (new_pos_x, new_pos_y)
+
+                        can_move = True
+                        for s in all_static:
+                            if temp_rect.colliderect(s):
+                                can_move = False
+                                break
+                        if can_move:
+                            obj.rect = temp_rect
                     else:
                         if axis == 'horizontal':
                             if movement > 0: self.player.right = obj.rect.left
@@ -500,6 +560,11 @@ class Playing:
             goal_surf = pygame.Surface(self.goal_rect.size, pygame.SRCALPHA)
             goal_surf.fill(GOAL_COLOR)
             screen.blit(goal_surf, self.camera.apply_rect(self.goal_rect))
+        for cp in self.checkpoints:
+            # Draw semi-transparently
+            cp_surf = pygame.Surface(cp.rect.size, pygame.SRCALPHA)
+            cp_surf.fill(cp.color)
+            screen.blit(cp_surf, self.camera.apply_rect(cp.rect))
         for spike in self.spikes:
             pts = [(spike.left, spike.bottom), (spike.centerx, spike.top), (spike.right, spike.bottom)]
             cam_pts = [self.camera.apply_rect(pygame.Rect(p, (1,1))).topleft for p in pts]
@@ -510,6 +575,8 @@ class Playing:
                 shadow_surf = pygame.Surface((wall.width, 10), pygame.SRCALPHA)
                 shadow_surf.fill(WALL_3D_SHADOW_COLOR)
                 screen.blit(shadow_surf, self.camera.apply_rect(wall).move(5, wall.height - 5))
+            pygame.draw.rect(screen, WALL_3D_COLOR, self.camera.apply_rect(wall))
+        for wall in self.v_walls:
             pygame.draw.rect(screen, WALL_3D_COLOR, self.camera.apply_rect(wall))
         for slope in self.slopes: slope.draw(screen, self.camera)
         for obj in self.pushable_objects: obj.draw(screen, self.camera)
