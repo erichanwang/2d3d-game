@@ -160,11 +160,14 @@ class Menu:
 class LevelSelect(Menu):
     def __init__(self, game):
         super().__init__(game)
+        self.all_level_buttons = []
         self.level_buttons = []
         self.levels_dir = "levels"
         self.scroll_y = 0
         self.load_levels()
         self.back_button = Button(30, SCREEN_HEIGHT - 70, 150, 50, "Back", GREY, HOVER_GREY)
+        self.search_box = TextInputBox(SCREEN_WIDTH // 2 - 150, 10, 300, 40, self.font)
+
     def load_levels(self):
         if not os.path.exists(self.levels_dir): os.makedirs(self.levels_dir)
         level_files = [f for f in os.listdir(self.levels_dir) if f.endswith(".txt")]
@@ -173,11 +176,30 @@ class LevelSelect(Menu):
             name = filename[:-4]
             play_button = Button(SCREEN_WIDTH // 2 - 210, y_pos, 200, 50, f"Play '{name}'", LIGHT_GREY, HOVER_GREY)
             edit_button = Button(SCREEN_WIDTH // 2 + 10, y_pos, 200, 50, f"Edit '{name}'", LIGHT_GREY, HOVER_GREY)
-            self.level_buttons.append({'play': play_button, 'edit': edit_button, 'filename': filename})
+            self.all_level_buttons.append({'play': play_button, 'edit': edit_button, 'filename': filename})
+        self.level_buttons = self.all_level_buttons[:]
+
+    def filter_levels(self):
+        search_term = self.search_box.text.lower()
+        if not search_term:
+            self.level_buttons = self.all_level_buttons[:]
+        else:
+            self.level_buttons = [
+                btn_group for btn_group in self.all_level_buttons
+                if search_term in btn_group['filename'].lower()
+            ]
+        for i, btn_group in enumerate(self.level_buttons):
+            y_pos = 100 + i * 70
+            btn_group['play'].rect.y = y_pos
+            btn_group['edit'].rect.y = y_pos
+
     def handle_events(self, events):
         for event in events:
+            if self.search_box.handle_event(event):
+                self.filter_levels()
+
             if event.type == pygame.MOUSEWHEEL:
-                self.scroll_y += event.y * 20
+                self.scroll_y -= event.y * 40
                 max_scroll = len(self.level_buttons) * 70 - (SCREEN_HEIGHT - 200)
                 self.scroll_y = max(0, min(self.scroll_y, max_scroll if max_scroll > 0 else 0))
             if self.back_button.is_clicked(event): self.game.change_state(MENU)
@@ -190,14 +212,18 @@ class LevelSelect(Menu):
                     level_path = os.path.join(self.levels_dir, btn_group['filename'])
                     with open(level_path, 'r') as f: level_data = f.readlines()
                     self.game.start_editing(level_data=level_data, filename=btn_group['filename'])
+
     def update(self):
         mouse_pos = pygame.mouse.get_pos()
         self.back_button.check_hover(mouse_pos)
         for btn_group in self.level_buttons:
             btn_group['play'].check_hover(mouse_pos, -self.scroll_y)
             btn_group['edit'].check_hover(mouse_pos, -self.scroll_y)
+        self.filter_levels()
+
     def draw(self, screen):
         screen.fill(WHITE)
+        self.search_box.draw(screen)
         title_font = pygame.font.Font(None, 74)
         title_surf = title_font.render("Select a Level", True, BLACK)
         screen.blit(title_surf, title_surf.get_rect(center=(SCREEN_WIDTH // 2, 50)))
