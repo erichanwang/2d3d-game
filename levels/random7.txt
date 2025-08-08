@@ -1,10 +1,47 @@
-      #         E   
- ##P #P  P##E ##EP# 
-  # EP  ## P#P PE ##
-# E #  #####PEPP#P# 
- P##P#  # #P # # #P#
- P# #EPP   P G##  # 
-  S   #P# P  #PPP   
-###   PP### PP  EPP 
- P ###  PP#P PPPP P 
-#  ##     #    #   #
+ground,0,580,4000,20
+start,133,540,40,50
+goal,3820,201,80,80
+platform,326,492,111,20
+spike,189,580,20,20
+spike,209,580,20,20
+spike,229,580,20,20
+spike,249,580,20,20
+platform,538,500,122,20
+spike,412,580,20,20
+spike,432,580,20,20
+platform,695,427,158,20
+platform,908,291,109,20
+platform,1083,251,153,20
+wall_3d,995,151,20,100
+platform,935,231,80,20
+platform,1231,180,95,20
+platform,1368,128,109,20
+platform,1593,100,86,20
+platform,1811,218,109,20
+wall_3d,1702,118,20,100
+platform,1642,198,80,20
+platform,1983,100,92,20
+platform,2136,196,187,20
+platform,2255,100,122,20
+platform,2462,100,151,20
+platform,2602,132,114,20
+platform,2840,219,105,20
+platform,3017,342,98,20
+platform,3248,394,193,20
+wall_3d,3132,294,20,100
+platform,3072,374,80,20
+platform,3372,269,131,20
+trampoline,3268,374,80,20
+platform,3621,246,126,20
+wall_3d,420,215,20,67
+wall_3d,992,272,20,106
+wall_3d,1052,487,20,74
+platform,3028,350,90,20
+platform,263,254,77,20
+wall_3d,2138,370,20,77
+wall_3d,2962,290,20,68
+wall_3d,1106,342,20,50
+wall_3d,3506,456,20,108
+platform,2268,504,64,20
+platform,504,356,92,20
+wall_3d,3544,347,20,104

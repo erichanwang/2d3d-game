@@ -1,10 +1,75 @@
-  ## #  # ## # ## # 
- P# #PPPP  PPP # PPE
-## #P P P SP P E P #
- PP#PPE#PGP P##  #  
- PP PP # # P P  E   
- #PP PPPPE  #P#P#PP#
-#P #    ##PEEP  PPE#
-    P# #PP E #P# PP 
-E# #EP P# EPPPPP#  #
- # #       #   #  ##
+ground,0,580,4000,20
+start,107,540,40,50
+goal,3760,254,80,80
+platform,260,500,128,20
+platform,501,483,83,20
+platform,723,500,125,20
+wall_3d,612,400,20,100
+platform,552,480,80,20
+platform,879,364,121,20
+platform,993,240,158,20
+wall_3d,936,140,20,100
+platform,876,220,80,20
+platform,1222,371,164,20
+platform,1355,350,200,20
+wall_3d,1288,250,20,100
+platform,1228,330,80,20
+platform,1527,317,90,20
+wall_3d,1441,217,20,100
+platform,1381,297,80,20
+platform,1639,272,91,20
+wall_3d,1583,172,20,100
+platform,1523,252,80,20
+platform,1806,304,151,20
+platform,1996,400,148,20
+slope,1954,204,100,100,100,0
+platform,2054,204,100,20
+platform,2165,330,151,20
+trampoline,2018,380,80,20
+platform,2368,324,128,20
+platform,2472,467,126,20
+wall_3d,2420,367,20,100
+platform,2360,447,80,20
+platform,2588,500,136,20
+slope,2608,367,100,100,100,0
+platform,2708,367,100,20
+platform,2720,500,189,20
+wall_3d,2654,400,20,100
+platform,2594,480,80,20
+platform,2848,394,154,20
+trampoline,2766,480,80,20
+platform,2959,407,145,20
+platform,3156,453,132,20
+slope,3091,307,100,100,100,0
+platform,3191,307,100,20
+platform,3348,500,177,20
+wall_3d,3252,400,20,100
+platform,3192,480,80,20
+platform,3539,500,174,20
+spike,3403,580,20,20
+spike,3423,580,20,20
+spike,3443,580,20,20
+spike,3463,580,20,20
+spike,3483,580,20,20
+platform,3731,500,157,20
+spike,3595,580,20,20
+spike,3615,580,20,20
+spike,3635,580,20,20
+spike,3655,580,20,20
+platform,194,162,82,20
+wall_3d,3031,105,20,83
+platform,471,301,94,20
+platform,3558,186,83,20
+wall_3d,3577,373,20,99
+wall_3d,959,194,20,63
+wall_3d,2493,441,20,60
+wall_3d,3757,557,20,98
+wall_3d,1920,287,20,63
+platform,2396,137,59,20
+platform,1001,396,75,20
+wall_3d,1813,468,20,54
+platform,2621,313,54,20
+platform,1698,197,65,20
+wall_3d,207,489,20,106
+wall_3d,3246,481,20,108
+platform,1248,159,70,20

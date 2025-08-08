@@ -1,10 +1,75 @@
-     #    #E #E ##  
- EEP#EP #PP###P E## 
-E  #P  # P P# P#P#  
-# PEP  G## EP#P   P 
-#P#P####   P#PPPE P 
-#P P    #P E #P#  P 
- E###P P##PP ##PP   
-###P #  #P#SP# P    
-  # PPPP#      #PPPE
-    ###  # # ##     
+ground,0,580,4000,20
+start,192,540,40,50
+goal,3880,208,80,80
+platform,346,500,104,20
+trampoline,219,520,80,20
+platform,534,500,95,20
+wall_3d,440,400,20,100
+platform,380,480,80,20
+platform,719,382,154,20
+platform,832,376,89,20
+slope,808,282,100,100,100,0
+platform,908,282,100,20
+platform,1042,476,108,20
+spike,897,580,20,20
+spike,917,580,20,20
+spike,937,580,20,20
+spike,957,580,20,20
+platform,1268,500,196,20
+trampoline,1089,456,80,20
+platform,1445,355,172,20
+trampoline,1311,480,80,20
+platform,1671,319,88,20
+platform,1854,224,83,20
+platform,2009,352,107,20
+wall_3d,1931,252,20,100
+platform,1871,332,80,20
+platform,2209,335,159,20
+wall_3d,2109,235,20,100
+platform,2049,315,80,20
+platform,2353,300,155,20
+wall_3d,2281,200,20,100
+platform,2221,280,80,20
+platform,2461,443,176,20
+slope,2529,200,100,100,100,0
+platform,2629,200,100,20
+platform,2596,500,122,20
+wall_3d,2528,400,20,100
+platform,2468,480,80,20
+platform,2801,500,110,20
+spike,2658,580,20,20
+spike,2678,580,20,20
+spike,2698,580,20,20
+spike,2718,580,20,20
+platform,3022,500,199,20
+spike,2871,580,20,20
+spike,2891,580,20,20
+spike,2911,580,20,20
+spike,2931,580,20,20
+platform,3255,500,103,20
+slope,3125,400,100,100,100,0
+platform,3225,400,100,20
+platform,3487,491,183,20
+trampoline,3281,480,80,20
+platform,3660,500,195,20
+platform,3907,374,116,20
+wall_3d,2000,206,20,54
+wall_3d,154,353,20,108
+wall_3d,1486,162,20,83
+platform,2928,149,55,20
+platform,2572,126,80,20
+wall_3d,284,406,20,100
+platform,859,513,60,20
+platform,1037,239,55,20
+platform,2297,427,64,20
+platform,2505,158,76,20
+wall_3d,1888,313,20,107
+wall_3d,1889,209,20,66
+wall_3d,274,482,20,91
+wall_3d,3422,418,20,59
+platform,2245,325,90,20
+platform,2589,237,76,20
+platform,2333,428,65,20
+platform,745,213,50,20
+platform,3135,254,81,20
+platform,2387,373,56,20
