@@ -76,6 +76,30 @@ class Button:
     def is_clicked(self, event):
         return self.is_hovered and event.type == pygame.MOUSEBUTTONDOWN and event.button == 1
 
+class TextInputBox:
+    def __init__(self, x, y, w, h, font):
+        self.rect = pygame.Rect(x, y, w, h)
+        self.color = LIGHT_GREY
+        self.text = ""
+        self.font = font
+        self.active = True
+
+    def handle_event(self, event):
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_RETURN:
+                return self.text
+            elif event.key == pygame.K_BACKSPACE:
+                self.text = self.text[:-1]
+            else:
+                self.text += event.unicode
+        return None
+
+    def draw(self, screen):
+        pygame.draw.rect(screen, self.color, self.rect, 2)
+        text_surface = self.font.render(self.text, True, BLACK)
+        screen.blit(text_surface, (self.rect.x + 5, self.rect.y + 5))
+        self.rect.w = max(200, text_surface.get_width() + 10)
+
 # --- Game Object Classes ---
 class GameObject:
     def __init__(self, x, y, w, h, color, obj_type="platform"):
@@ -194,24 +218,30 @@ class LevelEditor(LevelSelect):
         self.camera.camera.x = 0
         self.font = pygame.font.Font(None, 40)
         self.button_font = pygame.font.Font(None, 28)
+        self.title_font = pygame.font.Font(None, 36)
 
         self.palette_buttons = [
-            Button(10, 50, 200, 35, "Start Point", (200, 255, 200), (150, 255, 150)),
-            Button(10, 90, 200, 35, "End Goal", (255, 255, 200), (255, 255, 150)),
-            Button(10, 140, 95, 35, "Platform", RED, (255,150,150)),
-            Button(115, 140, 95, 35, "Spike", SPIKE_COLOR, (150,150,150), text_color=WHITE),
-            Button(10, 180, 95, 35, "Pushable", PURPLE, (200,150,200), text_color=WHITE),
-            Button(115, 180, 95, 35, "Trampoline", TRAMPOLINE_COLOR, (100,200,200)),
-            Button(10, 220, 95, 35, "3D Wall", WALL_3D_COLOR, (150,150,255), text_color=WHITE),
-            Button(115, 220, 95, 35, "V-Wall", WALL_3D_COLOR, (150,150,255), text_color=WHITE),
-            Button(10, 260, 95, 35, "Slope Up", SLOPE_COLOR, (255,200,100)),
-            Button(115, 260, 95, 35, "Slope Down", SLOPE_COLOR, (255,200,100)),
-            Button(10, 300, 200, 35, "Checkpoint", (200,255,200), (150,255,150)),
-            Button(10, 340, 200, 35, "DELETE", (255,100,100), (255,50,50), text_color=WHITE)
+            # Player & Level Control
+            Button(10, 60, 200, 35, "Start Point", (200, 255, 200), (150, 255, 150)),
+            Button(10, 105, 200, 35, "End Goal", (255, 255, 200), (255, 255, 150)),
+            Button(10, 150, 200, 35, "Checkpoint", (200,255,200), (150,255,150)),
+            # Basic Blocks
+            Button(10, 205, 95, 35, "Platform", RED, (255,150,150)),
+            Button(115, 205, 95, 35, "V-Wall", WALL_3D_COLOR, (150,150,255), text_color=WHITE),
+            Button(10, 250, 95, 35, "Slope Up", SLOPE_COLOR, (255,200,100)),
+            Button(115, 250, 95, 35, "Slope Down", SLOPE_COLOR, (255,200,100)),
+            # Interactive Objects
+            Button(10, 305, 95, 35, "Pushable", PURPLE, (200,150,200), text_color=WHITE),
+            Button(115, 305, 95, 35, "Trampoline", TRAMPOLINE_COLOR, (100,200,200)),
+            Button(10, 350, 95, 35, "3D Wall", WALL_3D_COLOR, (150,150,255), text_color=WHITE),
+            Button(115, 350, 95, 35, "Spike", SPIKE_COLOR, (150,150,150), text_color=WHITE),
+            # Delete
+            Button(10, 410, 200, 35, "DELETE", (255,100,100), (255,50,50), text_color=WHITE)
         ]
         self.snap_button = Button(10, SCREEN_HEIGHT - 150, 200, 40, "Snap: ON", (200, 255, 200), (150, 255, 150))
         self.save_button = Button(10, SCREEN_HEIGHT - 105, 200, 40, "Save Level", (200, 255, 200), (150, 255, 150))
         self.back_button = Button(10, SCREEN_HEIGHT - 60, 200, 40, "Back to Menu", (220, 220, 220), HOVER_GREY)
+        self.text_input_box = None
 
     def load_level_for_edit(self, level_data):
         for item in level_data:
@@ -231,6 +261,13 @@ class LevelEditor(LevelSelect):
     def handle_events(self, events):
         mouse_pos = pygame.mouse.get_pos()
         for event in events:
+            if self.text_input_box:
+                filename = self.text_input_box.handle_event(event)
+                if filename is not None:
+                    self.save_level(filename)
+                    self.text_input_box = None
+                return
+
             if self.back_button.is_clicked(event): self.game.change_state(MENU)
             if self.snap_button.is_clicked(event):
                 self.snap_to_grid = not self.snap_to_grid
@@ -239,9 +276,11 @@ class LevelEditor(LevelSelect):
             if event.type == pygame.MOUSEBUTTONDOWN:
                 for i, btn in enumerate(self.palette_buttons):
                     if btn.is_clicked(event):
-                        self.selected_object_type = ["start", "goal", "platform", "spike", "pushable", "trampoline", "wall_3d", "v_wall", "slope_up", "slope_down", "checkpoint", "delete"][i]
+                        self.selected_object_type = ["start", "goal", "checkpoint", "platform", "v_wall", "slope_up", "slope_down", "pushable", "trampoline", "wall_3d", "spike", "delete"][i]
                         return
-                if self.save_button.is_clicked(event): self.save_level(); return
+                if self.save_button.is_clicked(event):
+                    self.prompt_for_filename()
+                    return
 
                 if mouse_pos[0] > self.ui_width:
                     world_pos = (mouse_pos[0] - self.camera.camera.x, mouse_pos[1])
@@ -297,12 +336,16 @@ class LevelEditor(LevelSelect):
         self.draw_ghost(screen)
         ui_panel = pygame.Rect(0, 0, self.ui_width, SCREEN_HEIGHT)
         pygame.draw.rect(screen, UI_PANEL_COLOR, ui_panel)
-        title_surf = self.font.render("Editor", True, BLACK)
-        screen.blit(title_surf, (10, 10))
-        for button in self.palette_buttons: button.draw(screen, self.font)
-        self.snap_button.draw(screen, self.font)
-        self.save_button.draw(screen, self.font)
-        self.back_button.draw(screen, self.font)
+        title_surf = self.title_font.render("Level Editor", True, BLACK)
+        title_rect = title_surf.get_rect(center=(self.ui_width // 2, 30))
+        screen.blit(title_surf, title_rect)
+        for button in self.palette_buttons: button.draw(screen, self.button_font)
+        self.snap_button.draw(screen, self.button_font)
+        self.save_button.draw(screen, self.button_font)
+        self.back_button.draw(screen, self.button_font)
+
+        if self.text_input_box:
+            self.text_input_box.draw(screen)
 
     def draw_grid(self, screen):
         if self.snap_to_grid:
@@ -339,15 +382,20 @@ class LevelEditor(LevelSelect):
             pygame.draw.line(screen, RED, (x - 10, y - 10), (x + 10, y + 10), 3)
             pygame.draw.line(screen, RED, (x - 10, y + 10), (x + 10, y - 10), 3)
 
-    def save_level(self):
+    def prompt_for_filename(self):
+        self.text_input_box = TextInputBox(SCREEN_WIDTH // 2 - 150, SCREEN_HEIGHT // 2 - 20, 300, 40, self.font)
+
+    def save_level(self, filename):
+        if not filename:
+            print("Save cancelled.")
+            return
         has_start = any(o.type == "start" for o in self.objects)
         has_goal = any(o.type == "goal" for o in self.objects)
         if not has_start or not has_goal:
             print("ERROR: Level must have a Start Point and an End Goal to be saved.")
+            # Optionally, show this message on screen
             return
         if not os.path.exists("levels"): os.makedirs("levels")
-        filename = input("Enter level name to save: ")
-        if not filename: return
         with open(os.path.join("levels", f"{filename}.txt"), "w") as f:
             for obj in self.objects:
                 if isinstance(obj, Slope):
@@ -407,7 +455,10 @@ class Playing:
                 if event.key == pygame.K_SPACE:
                     if self.is_wall_sliding:
                         self.player_vel_y = JUMP_STRENGTH
-                        self.player.x += 5 if self.wall_slide_dir == 'left' else -5
+                        keys = pygame.key.get_pressed()
+                        away_from_wall_movement = (keys[pygame.K_RIGHT] or keys[pygame.K_d]) if self.wall_slide_dir == 'left' else (keys[pygame.K_LEFT] or keys[pygame.K_a])
+                        push_off_force = 10 if away_from_wall_movement else 5
+                        self.player.x += push_off_force if self.wall_slide_dir == 'left' else -push_off_force
                         self.is_wall_sliding = False
                     elif self.is_3d_mode and self.player_z == 0:
                         self.player_vel_z = JUMP_STRENGTH
@@ -492,7 +543,15 @@ class Playing:
                     self.last_checkpoint = cp.rect.topleft
                     cp.color = CHECKPOINT_ACTIVE_COLOR
 
-        static_colliders = self.platforms + self.walls_3d + self.v_walls + [obj.rect for obj in self.pushable_objects if obj.is_static]
+        static_colliders = self.platforms + [obj.rect for obj in self.pushable_objects if obj.is_static]
+        
+        # In 3D mode, only collide with walls/slopes if on the ground (z=0)
+        if self.is_3d_mode:
+            if self.player_z == 0:
+                static_colliders += self.walls_3d + self.v_walls + [s.rect for s in self.slopes]
+        else:
+            static_colliders += self.walls_3d + self.v_walls
+
         for plat in static_colliders:
             if self.player.colliderect(plat):
                 if axis == 'horizontal':
@@ -531,13 +590,16 @@ class Playing:
             for obj in self.pushable_objects:
                 if self.player.colliderect(obj.rect):
                     if self.is_grabbing:
-                        new_pos_x, new_pos_y = obj.rect.x + movement, obj.rect.y
+                        # Apply movement with damping
+                        damp_factor = 0.9
+                        move_x = movement * damp_factor
+                        move_y = 0
                         if axis == 'vertical':
-                            new_pos_x, new_pos_y = obj.rect.x, obj.rect.y + movement
-                        
-                        temp_rect = obj.rect.copy()
-                        temp_rect.topleft = (new_pos_x, new_pos_y)
+                            move_x = 0
+                            move_y = movement * damp_factor
 
+                        temp_rect = obj.rect.move(move_x, move_y)
+                        
                         can_move = True
                         for s in all_static:
                             if temp_rect.colliderect(s):
@@ -555,37 +617,64 @@ class Playing:
 
     def draw(self, screen):
         screen.fill(WHITE)
-        for plat in self.platforms: pygame.draw.rect(screen, GREY, self.camera.apply_rect(plat))
-        if self.goal_rect:
+        
+        # Optimization: Create a rect for the visible screen area in world coordinates
+        visible_world_rect = pygame.Rect(-self.camera.camera.x, -self.camera.camera.y, SCREEN_WIDTH, SCREEN_HEIGHT)
+
+        for plat in self.platforms:
+            if plat.colliderect(visible_world_rect):
+                pygame.draw.rect(screen, GREY, self.camera.apply_rect(plat))
+        if self.goal_rect and self.goal_rect.colliderect(visible_world_rect):
             goal_surf = pygame.Surface(self.goal_rect.size, pygame.SRCALPHA)
             goal_surf.fill(GOAL_COLOR)
             screen.blit(goal_surf, self.camera.apply_rect(self.goal_rect))
         for cp in self.checkpoints:
-            # Draw semi-transparently
-            cp_surf = pygame.Surface(cp.rect.size, pygame.SRCALPHA)
-            cp_surf.fill(cp.color)
-            screen.blit(cp_surf, self.camera.apply_rect(cp.rect))
+            if cp.rect.colliderect(visible_world_rect):
+                cp_surf = pygame.Surface(cp.rect.size, pygame.SRCALPHA)
+                cp_surf.fill(cp.color)
+                screen.blit(cp_surf, self.camera.apply_rect(cp.rect))
         for spike in self.spikes:
-            pts = [(spike.left, spike.bottom), (spike.centerx, spike.top), (spike.right, spike.bottom)]
+            if spike.colliderect(visible_world_rect):
+                pts = [(spike.left, spike.bottom), (spike.centerx, spike.top), (spike.right, spike.bottom)]
             cam_pts = [self.camera.apply_rect(pygame.Rect(p, (1,1))).topleft for p in pts]
             pygame.draw.polygon(screen, SPIKE_COLOR, cam_pts)
-        for tramp in self.trampolines: pygame.draw.rect(screen, TRAMPOLINE_COLOR, self.camera.apply_rect(tramp))
+        for tramp in self.trampolines:
+            if tramp.colliderect(visible_world_rect):
+                pygame.draw.rect(screen, TRAMPOLINE_COLOR, self.camera.apply_rect(tramp))
         for wall in self.walls_3d:
-            if self.is_3d_mode:
-                shadow_surf = pygame.Surface((wall.width, 10), pygame.SRCALPHA)
-                shadow_surf.fill(WALL_3D_SHADOW_COLOR)
-                screen.blit(shadow_surf, self.camera.apply_rect(wall).move(5, wall.height - 5))
-            pygame.draw.rect(screen, WALL_3D_COLOR, self.camera.apply_rect(wall))
+            if wall.colliderect(visible_world_rect):
+                if self.is_3d_mode:
+                    shadow_surf = pygame.Surface((wall.width, 10), pygame.SRCALPHA)
+                    shadow_surf.fill(WALL_3D_SHADOW_COLOR)
+                    screen.blit(shadow_surf, self.camera.apply_rect(wall).move(5, wall.height - 5))
+                pygame.draw.rect(screen, WALL_3D_COLOR, self.camera.apply_rect(wall))
         for wall in self.v_walls:
-            pygame.draw.rect(screen, WALL_3D_COLOR, self.camera.apply_rect(wall))
-        for slope in self.slopes: slope.draw(screen, self.camera)
-        for obj in self.pushable_objects: obj.draw(screen, self.camera)
+            if wall.colliderect(visible_world_rect):
+                pygame.draw.rect(screen, WALL_3D_COLOR, self.camera.apply_rect(wall))
+        for slope in self.slopes:
+            if slope.rect.colliderect(visible_world_rect):
+                slope.draw(screen, self.camera)
+        for obj in self.pushable_objects:
+            if obj.rect.colliderect(visible_world_rect):
+                obj.draw(screen, self.camera)
         
         player_color = GREEN if self.is_3d_mode else BLUE
+        if self.is_wall_sliding: player_color = (0, 200, 200) # Cyan when wall sliding
+        
         player_draw_rect = self.camera.apply(self.player)
+
         if self.is_3d_mode:
-            # Apply Z-based scaling
-            scale = 1 - (abs(self.player_z) / (Z_JUMP_HEIGHT * 5))
+            # Draw shadow first
+            if self.player_z < 0:
+                shadow_size = self.player.width
+                shadow_rect = pygame.Rect(0, 0, shadow_size, shadow_size // 2)
+                shadow_rect.center = player_draw_rect.center
+                shadow_surf = pygame.Surface(shadow_rect.size, pygame.SRCALPHA)
+                pygame.draw.ellipse(shadow_surf, (0,0,0,100), (0,0,shadow_size, shadow_size//2))
+                screen.blit(shadow_surf, shadow_rect)
+
+            # Apply Z-based scaling (gets bigger as it comes closer/higher)
+            scale = 1 + (abs(self.player_z) / (Z_JUMP_HEIGHT * 4))
             player_draw_rect.width = int(self.player.width * scale)
             player_draw_rect.height = int(self.player.height * scale)
             
@@ -604,7 +693,17 @@ class PlayingInfinite(Playing):
     def __init__(self, game):
         super().__init__(game, level_data=[])
         self.last_generated_x = 0
-        self.generate_chunk(0) 
+        self.generate_chunk(0)
+
+    def reset_level(self):
+        self.player.topleft = self.start_pos
+        self.player_vel_y = 0
+        self.player_z = 0
+        self.player_vel_z = 0
+        self.last_generated_x = 0
+        self.platforms, self.pushable_objects, self.trampolines, self.walls_3d, self.slopes, self.spikes, self.checkpoints, self.v_walls = [], [], [], [], [], [], [], []
+        self.platforms.append(pygame.Rect(0, SCREEN_HEIGHT - 20, SCREEN_WIDTH * 2, 20))
+        self.generate_chunk(0)
 
     def generate_chunk(self, start_x):
         chunk_width = SCREEN_WIDTH 
