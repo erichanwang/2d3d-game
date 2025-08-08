@@ -369,8 +369,8 @@ class Playing:
     def handle_events(self, events):
         for event in events:
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE or event.key == pygame.K_q: self.game.change_state(MENU)
-                if event.key == pygame.K_f or event.key == pygame.K_j: self.toggle_mode()
+                if event.key == pygame.K_ESCAPE: self.game.change_state(MENU)
+                if event.key == pygame.K_f: self.toggle_mode()
                 if event.key == pygame.K_SPACE and self.is_3d_mode and self.z_jump_timer == 0:
                     self.z_jump_timer = Z_JUMP_DURATION
                 if event.key in [pygame.K_UP, pygame.K_w] and not self.is_3d_mode and (self.on_ground or self.coyote_timer > 0):
@@ -388,7 +388,7 @@ class Playing:
 
     def update(self):
         keys = pygame.key.get_pressed()
-        self.is_grabbing = (keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT] or keys[pygame.MOUSEBUTTONDOWN] or keys[pygame.K_k]) and self.is_3d_mode
+        self.is_grabbing = (keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT]) and self.is_3d_mode
         
         dx = ((keys[pygame.K_RIGHT] or keys[pygame.K_d]) - (keys[pygame.K_LEFT] or keys[pygame.K_a])) * 5
         dy = 0
